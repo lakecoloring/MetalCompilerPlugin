@@ -5,7 +5,6 @@ import PackagePlugin
 @main
 struct MetalPlugin: BuildToolPlugin {
     func createBuildCommands(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) async throws -> [PackagePlugin.Command] {
-        #if DEBUG
         var paths: [Path] = []
         target.directory.walk { path in
             if path.pathExtension == "metal" {
@@ -13,25 +12,28 @@ struct MetalPlugin: BuildToolPlugin {
             }
         }
         Diagnostics.remark("Running...")
+        let arguments = [
+            "metal",
+        ]
+            + [
+                "-o",
+                context.pluginWorkDirectory.appending(["debug.metallib"]).string,
+                "-gline-tables-only",
+                "-frecord-sources",
+            ]
+            + paths.map(\.string)
         return [
             .buildCommand(
                 displayName: "Test",
-                executable: try context.tool(named: "MetalCompilerTool").path,
-                arguments: [
-                    "--output", context.pluginWorkDirectory.appending(["debug.metallib"]).string,
-                ]
-                    + paths.map(\.string),
-
+                executable: Path("/usr/bin/xcrun"),
+                arguments: arguments,
                 environment: [:],
                 inputFiles: paths,
                 outputFiles: [
-                    context.pluginWorkDirectory.appending(["debug.metallib"]),
+                    context.pluginWorkDirectory.appending(["debug.metallib"])
                 ]
-            ),
+            )
         ]
-        #else
-        return []
-        #endif
     }
 }
 
@@ -40,7 +42,8 @@ extension Path {
         let errorHandler = { (_: URL, _: Swift.Error) -> Bool in
             true
         }
-        guard let enumerator = FileManager().enumerator(at: url, includingPropertiesForKeys: nil, options: [], errorHandler: errorHandler) else {
+        guard let enumerator = FileManager().enumerator(at: url, includingPropertiesForKeys: nil, options: [], errorHandler: errorHandler)
+        else {
             fatalError()
         }
         for url in enumerator {
